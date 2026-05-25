@@ -1,0 +1,13 @@
+-- dataform/definitions/core/fact_pressure.sqlx
+-- Pressure events. StatsBomb logs these explicitly — most providers don't.
+-- This is what makes Scout's pressing analysis REAL, not a proxy.
+config { type: "table", schema: "statsbomb_core",
+         description: "One row per pressure event with pitch location." }
+
+SELECT
+  event_id, match_id, team_name, player_name AS presser_name,
+  minute, location_x AS x, location_y AS y,
+  -- in the attacking 60% of the pitch = high press
+  (location_x >= 48) AS high_press
+FROM ${ref("fact_event")}
+WHERE type_name = "Pressure"

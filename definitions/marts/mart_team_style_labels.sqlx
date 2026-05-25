@@ -1,0 +1,45 @@
+-- mart_team_style_labels.sqlx
+-- THE KEY CREDIBILITY DECISION: no black-box 0-1 "control_score = 0.82".
+-- Instead: real measurable components + a label defined by a VISIBLE RULE.
+-- A football analyst can audit every label. That is what makes it defensible.
+
+config { type: "table", schema: "statsbomb_marts",
+         description: "Transparent style components + rule-based labels per team-match." }
+
+WITH base AS (
+  SELECT
+    m.match_id, m.team_name, m.opponent_team_name,
+    SAFE_DIVIDE(m.forward_passes, m.passes)                 AS forward_share,
+    SAFE_DIVIDE(m.progressive_passes, m.passes)             AS progressive_share,
+    SAFE_DIVIDE(m.box_entries, NULLIF(m.final_third_entries,0)) AS box_conversion,
+    m.pass_completion_under_pressure,
+    m.passes,
+    pp.ppda,
+    -- directness: share of passes going forward (higher = more direct)
+    SAFE_DIVIDE(m.forward_passes, m.passes)                 AS directness,
+    -- field tilt: this team's final-third entries vs both teams' (territorial dominance)
+    -- opp final-third entries via a clean join (no correlated subquery)
+    SAFE_DIVIDE(m.final_third_entries,
+        NULLIF(m.final_third_entries + COALESCE(opp.final_third_entries,0), 0)) AS field_tilt
+  FROM ${ref("mart_team_match_profile")} m
+  LEFT JOIN ${ref("mart_team_pressure_profile")} pp
+    USING(match_id, team_name)
+  LEFT JOIN ${ref("mart_team_match_profile")} opp
+    ON opp.match_id = m.match_id AND opp.team_name = m.opponent_team_name
+)
+SELECT
+  *,
+  -- central_progression_share placeholder kept transparent (passes into central final third)
+  progressive_share AS central_progression_share,
+  -- LABELS as visible rules — every threshold is auditable
+  CASE
+    WHEN directness >= 0.40 AND field_tilt < 0.50 THEN "direct_build_up"
+    WHEN passes >= 500 AND directness < 0.35      THEN "controlled_build_up"
+    ELSE "balanced_build_up"
+  END AS build_up_label,
+  CASE
+    WHEN ppda IS NOT NULL AND ppda <= 8 THEN "high_press"
+    WHEN ppda > 14                      THEN "passive_block_proxy"
+    ELSE "moderate_press"
+  END AS press_label
+FROM base

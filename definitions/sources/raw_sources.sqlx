@@ -1,0 +1,10 @@
+-- dataform/definitions/sources/raw_sources.sqlx
+config { type: "declaration", schema: "statsbomb_raw", name: "events_raw" }
+
+---
+
+config { type: "declaration", schema: "statsbomb_raw", name: "matches_raw" }
+
+---
+
+config { type: "declaration", schema: "statsbomb_raw", name: "frames360_raw" }

@@ -1,0 +1,4 @@
+-- Fails if a player passes to themselves (data bug).
+config { type: "assertion", schema: "dataform_assertions" }
+SELECT * FROM ${ref("mart_team_pass_network")}
+WHERE passer_name = receiver_name

@@ -1,0 +1,26 @@
+-- mart_team_pressure_profile.sqlx
+-- PPDA and pressing — using StatsBomb's real pressure events, not a weak proxy.
+-- PPDA = opponent passes (in their build-up zone) / our defensive actions high up.
+config { type: "table", schema: "statsbomb_marts",
+         description: "Pressing profile per team-match: PPDA, high pressures, ball-win height." }
+
+WITH opp_passes AS (
+  -- opponent passes made in their own build-up area (x < 72 from THEIR view)
+  SELECT match_id, opponent_team_name AS pressing_team, COUNT(*) AS opp_passes_low
+  FROM ${ref("fact_pass")}
+  WHERE start_x < 72
+  GROUP BY 1,2
+),
+def_actions AS (
+  -- our pressures high up the pitch
+  SELECT match_id, team_name AS pressing_team, COUNTIF(high_press) AS def_actions_high
+  FROM ${ref("fact_pressure")}
+  GROUP BY 1,2
+)
+SELECT
+  d.match_id, d.pressing_team AS team_name,
+  o.opp_passes_low, d.def_actions_high,
+  SAFE_DIVIDE(o.opp_passes_low, NULLIF(d.def_actions_high,0)) AS ppda,
+  d.def_actions_high AS high_pressures
+FROM def_actions d
+JOIN opp_passes o USING(match_id, pressing_team)

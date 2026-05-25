@@ -1,0 +1,27 @@
+-- mart_player_match_profile.sqlx
+-- One row per player per match. Sample-size flag baked in for honesty.
+config { type: "table", schema: "statsbomb_marts",
+         description: "Per-player-per-match contribution with sample-size flag." }
+
+WITH pass AS (
+  SELECT match_id, team_name, passer_name AS player_name,
+    COUNT(*) passes, COUNTIF(is_progressive) progressive_passes,
+    COUNTIF(into_final_third) final_third_entries
+  FROM ${ref("fact_pass")} WHERE completed GROUP BY 1,2,3
+),
+shot AS (
+  SELECT match_id, team_name, shooter_name AS player_name,
+    COUNT(*) shots, SUM(xg) xg, COUNTIF(is_goal) goals
+  FROM ${ref("fact_shot")} GROUP BY 1,2,3
+)
+SELECT
+  COALESCE(pass.match_id, shot.match_id) match_id,
+  COALESCE(pass.team_name, shot.team_name) team_name,
+  COALESCE(pass.player_name, shot.player_name) player_name,
+  COALESCE(passes,0) passes,
+  COALESCE(progressive_passes,0) progressive_passes,
+  COALESCE(final_third_entries,0) final_third_entries,
+  COALESCE(shots,0) shots, COALESCE(xg,0) xg, COALESCE(goals,0) goals,
+  -- xG over/underperformance — but see the honesty rule in agent instructions
+  COALESCE(goals,0) - COALESCE(xg,0) AS goals_minus_xg
+FROM pass FULL OUTER JOIN shot USING(match_id, team_name, player_name)

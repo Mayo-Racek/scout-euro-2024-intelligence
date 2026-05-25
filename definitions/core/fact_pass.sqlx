@@ -1,0 +1,69 @@
+-- dataform/definitions/core/fact_pass.sqlx
+-- THE most-used brick. Every directional/contextual property pre-computed ONCE.
+-- "forward pass", "progressive", "under pressure" are defined here and nowhere else.
+
+config {
+  type: "table",
+  schema: "statsbomb_core",
+  description: "One row per pass. Direction & progressive flags pre-computed from constants."
+}
+
+js {
+  const c = require("includes/constants.js");
+}
+
+-- opponent lookup: the two teams per match, paired. Avoids a correlated subquery.
+WITH match_teams AS (
+  SELECT DISTINCT match_id, team_name FROM ${ref("fact_event")}
+),
+opponents AS (
+  SELECT a.match_id, a.team_name, b.team_name AS opponent_team_name
+  FROM match_teams a
+  JOIN match_teams b
+    ON a.match_id = b.match_id AND a.team_name != b.team_name
+),
+base AS (
+  SELECT e.*, o.opponent_team_name
+  FROM ${ref("fact_event")} e
+  LEFT JOIN opponents o
+    ON e.match_id = o.match_id AND e.team_name = o.team_name
+  WHERE e.type_name = "Pass"
+)
+SELECT
+  event_id, match_id, team_name, opponent_team_name,
+  player_name  AS passer_name,
+  pass_recipient_name AS receiver_name,
+  minute, second, possession_id,
+  location_x AS start_x, location_y AS start_y,
+  pass_end_x AS end_x,   pass_end_y AS end_y,
+  pass_length,
+
+  -- PHASE WINDOW (any question can filter by phase)
+  CASE WHEN minute < ${c.OPENING_END}      THEN "first_15"
+       WHEN minute >= ${c.CLOSING_START}   THEN "last_15"
+       ELSE "middle" END AS phase_window,
+
+  -- DIRECTION (forward/backward defined ONCE, in constants)
+  CASE
+    WHEN pass_end_x - location_x >  ${c.FORWARD_THRESHOLD} THEN "forward"
+    WHEN pass_end_x - location_x < -${c.FORWARD_THRESHOLD} THEN "backward"
+    ELSE "sideways"
+  END AS pass_direction,
+
+  -- PROGRESSIVE (>=25% closer to goal)
+  ((${c.PITCH_LENGTH} - pass_end_x) < (${c.PITCH_LENGTH} - location_x) * ${c.PROGRESSIVE_RATIO})
+    AS is_progressive,
+
+  -- StatsBomb's explicit pressure flag — a real differentiator
+  COALESCE(under_pressure, FALSE) AS under_pressure,
+
+  -- completed = no failure outcome recorded
+  (pass_outcome_name IS NULL) AS completed,
+
+  -- open play vs set piece
+  (play_pattern_name LIKE "From %") AS from_set_piece,
+
+  -- reaches final third / box
+  (pass_end_x >= 80) AS into_final_third,
+  (pass_end_x >= 102 AND pass_end_y BETWEEN 18 AND 62) AS into_box
+FROM base

@@ -1,0 +1,5 @@
+-- Fails if we don't have all 51 Euro 2024 matches. Returns violating rows.
+config { type: "assertion", schema: "dataform_assertions" }
+SELECT 1 AS problem
+FROM (SELECT COUNT(DISTINCT match_id) n FROM ${ref("fact_event")})
+WHERE n <> 51

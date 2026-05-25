@@ -1,0 +1,17 @@
+-- dataform/definitions/core/fact_possession.sqlx
+-- One row per possession sequence: how it started, how it ended.
+config { type: "table", schema: "statsbomb_core",
+         description: "One row per possession sequence per match." }
+
+SELECT
+  match_id, possession_id,
+  ANY_VALUE(possession_team_name) AS team_name,
+  MIN(minute) AS start_minute, MAX(minute) AS end_minute,
+  COUNTIF(type_name = "Pass")  AS pass_count,
+  COUNTIF(type_name = "Carry") AS carry_count,
+  COUNTIF(type_name = "Shot")  AS shot_count,
+  LOGICAL_OR(type_name = "Shot") AS ended_with_shot,
+  MAX(CASE WHEN type_name="Shot" AND shot_outcome_name="Goal" THEN 1 ELSE 0 END)=1 AS ended_with_goal
+FROM ${ref("fact_event")}
+WHERE possession_id IS NOT NULL
+GROUP BY match_id, possession_id

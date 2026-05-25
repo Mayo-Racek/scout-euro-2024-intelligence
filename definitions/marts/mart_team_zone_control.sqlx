@@ -1,0 +1,38 @@
+-- mart_team_zone_control.sqlx
+-- THE TACTICAL MAP. For each zone: what a team does there vs what they ALLOW
+-- opponents to do there. This is where you SEE who controls each area —
+-- "England conceded the half-spaces", "Spain owned the left channel".
+
+config {
+  type: "table", schema: "statsbomb_marts",
+  description: "Per-zone: own activity vs opponent activity. The control/vulnerability map."
+}
+
+WITH own AS (
+  SELECT match_id, team_name, zone,
+         shots AS own_shots, shot_xg AS own_xg,
+         recoveries AS own_recoveries, pressures AS own_pressures
+  FROM ${ref("mart_team_zone_activity")}
+),
+-- opponent activity in the same match+zone (their shots = danger we conceded there)
+opp AS (
+  SELECT a.match_id, a.team_name, a.zone,
+         o.shots AS opp_shots, o.shot_xg AS opp_xg
+  FROM ${ref("mart_team_zone_activity")} a
+  JOIN ${ref("mart_team_match_profile")} m
+    ON a.match_id = m.match_id AND a.team_name = m.team_name
+  JOIN ${ref("mart_team_zone_activity")} o
+    ON o.match_id = a.match_id
+   AND o.team_name = m.opponent_team_name
+   AND o.zone = a.zone
+)
+SELECT
+  own.match_id, own.team_name, own.zone,
+  own.own_shots, own.own_xg, own.own_recoveries, own.own_pressures,
+  COALESCE(opp.opp_shots,0) AS opp_shots,
+  COALESCE(opp.opp_xg,0)    AS opp_xg,
+  -- ZONE CONTROL: own danger created minus danger conceded in this zone.
+  -- Positive = you win this zone. Negative = vulnerable here.
+  own.own_xg - COALESCE(opp.opp_xg,0) AS zone_xg_control
+FROM own
+LEFT JOIN opp USING(match_id, team_name, zone)

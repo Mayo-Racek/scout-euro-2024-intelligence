@@ -1,0 +1,8 @@
+-- Fails if any zone label is malformed (should be Third-Channel like "Att-LHS").
+config { type: "assertion", schema: "dataform_assertions" }
+SELECT * FROM ${ref("mart_team_zone_activity")}
+WHERE zone IS NOT NULL
+  AND zone NOT IN (
+    SELECT CONCAT(t,'-',c)
+    FROM UNNEST(['Def','Mid','Att']) t, UNNEST(['LW','LHS','LC','RC','RHS','RW']) c
+  )

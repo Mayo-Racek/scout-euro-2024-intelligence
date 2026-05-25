@@ -1,0 +1,11 @@
+-- dataform/definitions/core/dim_match.sqlx
+config { type: "table", schema: "statsbomb_core",
+         description: "One row per match with teams, score, stage." }
+
+SELECT
+  CAST(match_id AS INT64) AS match_id,
+  match_date, home_team AS home_team_name, away_team AS away_team_name,
+  CAST(home_score AS INT64) AS home_score,
+  CAST(away_score AS INT64) AS away_score,
+  competition_stage AS stage
+FROM ${ref("matches_raw")}

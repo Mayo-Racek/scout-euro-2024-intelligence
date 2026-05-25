@@ -1,0 +1,16 @@
+# NEVER commit credentials
+*.json.key
+service-account*.json
+*-key.json
+credentials*.json
+.env
+*.pem
+
+# Notebook outputs (keep repo clean + avoid leaking data screenshots)
+notebooks/*.ipynb_checkpoints/
+**/.ipynb_checkpoints/
+
+# Local config
+.DS_Store
+__pycache__/
+*.pyc

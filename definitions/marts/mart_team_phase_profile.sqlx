@@ -1,0 +1,17 @@
+-- mart_team_phase_profile.sqlx
+-- "How did Spain start games?" — phase-windowed team profile, any team.
+config { type: "table", schema: "statsbomb_marts",
+         description: "Team profile split by game phase (first_15 / middle / last_15)." }
+
+SELECT
+  match_id, team_name, opponent_team_name, phase_window,
+  COUNT(*) passes,
+  SAFE_DIVIDE(COUNTIF(completed), COUNT(*)) pass_completion_rate,
+  COUNTIF(is_progressive) progressive_passes,
+  COUNTIF(into_final_third) final_third_entries,
+  COUNTIF(pass_direction="forward")  forward_passes,
+  COUNTIF(pass_direction="backward") backward_passes,
+  SAFE_DIVIDE(COUNTIF(pass_direction="forward"), COUNT(*)) directness
+FROM ${ref("fact_pass")}
+WHERE completed
+GROUP BY 1,2,3,4

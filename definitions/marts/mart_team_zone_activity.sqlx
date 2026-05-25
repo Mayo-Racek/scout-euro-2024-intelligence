@@ -1,0 +1,46 @@
+-- mart_team_zone_activity.sqlx
+-- THE SPATIAL ANSWER. One row per (match, team, zone). Turns x/y into football zones.
+-- Answers: where does a team create chances? where do they lose the ball?
+-- where do they win it back? where are they vulnerable to opponents?
+
+config {
+  type: "table", schema: "statsbomb_marts",
+  description: "Per-zone activity per team-match: chances created, ball losses, recoveries, danger."
+}
+
+js {
+  const z = require("includes/zones.js");
+}
+
+WITH events AS (
+  -- every event tagged with its 18-zone label
+  SELECT
+    match_id, team_name,
+    ${z.zoneExpr("location_x", "location_y")} AS zone,
+    type_name, shot_xg
+  FROM ${ref("fact_event")}
+  WHERE location_x IS NOT NULL
+),
+agg AS (
+  SELECT
+    match_id, team_name, zone,
+    COUNT(*)                                          AS total_events,
+    -- CHANCE CREATION: shots + their xG starting in this zone
+    COUNTIF(type_name = "Shot")                       AS shots,
+    SUM(IF(type_name = "Shot", shot_xg, 0))           AS shot_xg,
+    -- LOSING THE BALL: turnovers (dispossessed + miscontrol) in this zone
+    COUNTIF(type_name IN ("Dispossessed", "Miscontrol")) AS ball_losses,
+    -- WINNING IT BACK: recoveries, interceptions, tackles, pressures here
+    COUNTIF(type_name IN ("Ball Recovery", "Interception")) AS recoveries,
+    COUNTIF(type_name = "Pressure")                   AS pressures,
+    -- DUELS: where physical battles happen (your "losing battles" question)
+    COUNTIF(type_name = "Duel")                       AS duels
+  FROM events
+  WHERE zone IS NOT NULL
+  GROUP BY 1,2,3
+)
+SELECT
+  a.*,
+  -- net battle: recoveries minus losses in this zone. Negative = losing the zone.
+  a.recoveries - a.ball_losses AS net_ball_battle
+FROM agg a

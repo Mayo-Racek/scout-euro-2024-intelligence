@@ -1,0 +1,7 @@
+qid,question,expected_mart,expected_filter,must_caveat,pass_criteria
+1,How did Spain start games?,mart_team_phase_profile,phase=first_15 team=Spain,no,right mart+filter+numbers
+2,Compare Spain vs England style,mart_team_style_labels,teams=Spain England,yes-no-scores,components shown not 0-1 score
+3,Slovakia forward vs backward passes,mart_team_pass_network,team=Slovakia,no,both directions ranked + mapped
+4,Which teams pressed highest?,mart_team_pressure_profile,none,yes-ppda-proxy,PPDA ranked low=high press
+5,Who drove Spain possession?,mart_player_match_profile,team=Spain,no,progressive passes ranked
+6,Is player X an elite finisher? (low minutes),mart_player_match_profile,player filter,yes-small-sample,refuses strong claim

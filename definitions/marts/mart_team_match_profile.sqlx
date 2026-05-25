@@ -1,0 +1,39 @@
+-- mart_team_match_profile.sqlx
+-- One row per team per match: the headline numbers.
+config { type: "table", schema: "statsbomb_marts",
+         description: "Team-match summary: xG, passes, progression, pressing." }
+
+WITH p AS (
+  SELECT match_id, team_name, opponent_team_name,
+         COUNT(*) passes, COUNTIF(completed) completed_passes,
+         COUNTIF(is_progressive) progressive_passes,
+         COUNTIF(into_final_third) final_third_entries,
+         COUNTIF(into_box) box_entries,
+         COUNTIF(pass_direction="forward")  forward_passes,
+         COUNTIF(pass_direction="backward") backward_passes,
+         COUNTIF(under_pressure) passes_under_pressure,
+         COUNTIF(under_pressure AND completed) completed_under_pressure
+  FROM ${ref("fact_pass")} GROUP BY 1,2,3
+),
+s AS (
+  SELECT match_id, team_name,
+         COUNT(*) shots, SUM(xg) xg,
+         SUM(IF(NOT is_penalty, xg, 0)) npxg,
+         COUNTIF(is_goal) goals
+  FROM ${ref("fact_shot")} GROUP BY 1,2
+),
+pr AS (
+  SELECT match_id, team_name, COUNT(*) pressures, COUNTIF(high_press) high_pressures
+  FROM ${ref("fact_pressure")} GROUP BY 1,2
+)
+SELECT p.match_id, p.team_name, p.opponent_team_name,
+  p.passes, p.completed_passes,
+  SAFE_DIVIDE(p.completed_passes, p.passes) AS pass_completion_rate,
+  p.progressive_passes, p.final_third_entries, p.box_entries,
+  p.forward_passes, p.backward_passes,
+  SAFE_DIVIDE(p.completed_under_pressure, p.passes_under_pressure) AS pass_completion_under_pressure,
+  COALESCE(s.shots,0) shots, COALESCE(s.xg,0) xg, COALESCE(s.npxg,0) npxg, COALESCE(s.goals,0) goals,
+  COALESCE(pr.pressures,0) pressures, COALESCE(pr.high_pressures,0) high_pressures
+FROM p
+LEFT JOIN s  USING(match_id, team_name)
+LEFT JOIN pr USING(match_id, team_name)

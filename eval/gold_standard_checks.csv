@@ -1,0 +1,6 @@
+check_id,claim,how_to_verify,expected
+1,Euro 2024 had 51 matches,COUNT(DISTINCT match_id) in fact_event,51
+2,24 teams competed,COUNT(DISTINCT team_name) in fact_event,24
+3,Spain won the final 2-1 vs England,dim_match final row score,Spain 2 England 1
+4,Spain played 7 matches,COUNT matches where Spain appears,7
+5,Final stage exists,dim_match has stage=Final,1 row

@@ -1,0 +1,19 @@
+-- mart_team_pass_network.sqlx
+-- Answers: pass networks, passing hubs, forward vs backward passes — for ALL teams.
+-- Team/opponent/phase are FILTERS, not new code. Verify once, correct for all 24 teams.
+config { type: "table", schema: "statsbomb_marts",
+         description: "Passer->receiver edges per match. The pass-network/direction question for every team." }
+
+SELECT
+  match_id, team_name, opponent_team_name, phase_window,
+  passer_name, receiver_name,
+  COUNT(*)                            AS passes,
+  COUNTIF(is_progressive)             AS progressive_passes,
+  COUNTIF(pass_direction="forward")   AS forward_passes,
+  COUNTIF(pass_direction="backward")  AS backward_passes,
+  COUNTIF(into_final_third)           AS final_third_entries,
+  AVG(start_x) AS avg_start_x, AVG(start_y) AS avg_start_y,
+  AVG(end_x)   AS avg_end_x,   AVG(end_y)   AS avg_end_y
+FROM ${ref("fact_pass")}
+WHERE completed AND NOT from_set_piece
+GROUP BY 1,2,3,4,5,6

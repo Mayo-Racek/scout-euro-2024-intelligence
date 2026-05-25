@@ -1,0 +1,6 @@
+{
+  "name": "scout-euro-2024-intelligence",
+  "dependencies": {
+    "@dataform/core": "3.0.0"
+  }
+}

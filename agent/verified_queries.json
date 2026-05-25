@@ -1,0 +1,45 @@
+{
+  "description": "Parameterized question PATTERNS. @team etc are filled at runtime. One pattern serves all 24 teams.",
+  "patterns": [
+    {
+      "pattern": "How did @team start games?",
+      "intent": "describe", "mart": "mart_team_phase_profile",
+      "filters": {"phase_window": "first_15", "team_name": "@team"},
+      "viz": "radar", "caveat": false
+    },
+    {
+      "pattern": "Compare @teamA vs @teamB playing style",
+      "intent": "compare", "mart": "mart_team_style_labels",
+      "filters": {"team_name": ["@teamA", "@teamB"]},
+      "viz": "radar",
+      "caveat": "report transparent components + labels, never 0-1 scores",
+      "sample_sql": "SELECT team_name, AVG(directness) d, AVG(field_tilt) tilt, AVG(progressive_share) prog, AVG(pass_completion_under_pressure) press FROM statsbomb_marts.mart_team_style_labels WHERE team_name IN (@teamA,@teamB) GROUP BY 1"
+    },
+    {
+      "pattern": "Most forward vs backward passes for @team",
+      "intent": "rank", "mart": "mart_team_pass_network",
+      "filters": {"team_name": "@team"},
+      "viz": "pitch_network",
+      "sample_sql": "SELECT passer_name, SUM(forward_passes) fwd, SUM(backward_passes) bwd FROM statsbomb_marts.mart_team_pass_network WHERE team_name=@team GROUP BY 1 ORDER BY fwd DESC"
+    },
+    {
+      "pattern": "@team pass network vs @opponent",
+      "intent": "network", "mart": "mart_team_pass_network",
+      "filters": {"team_name": "@team", "opponent_team_name": "@opponent"},
+      "viz": "pitch_network"
+    },
+    {
+      "pattern": "Which teams pressed highest?",
+      "intent": "rank", "mart": "mart_team_pressure_profile",
+      "viz": "bar", "caveat": "PPDA from events is a proxy",
+      "sample_sql": "SELECT team_name, AVG(ppda) ppda FROM statsbomb_marts.mart_team_pressure_profile GROUP BY 1 ORDER BY ppda ASC"
+    },
+    {
+      "pattern": "Who drove @team's possession?",
+      "intent": "rank", "mart": "mart_player_match_profile",
+      "filters": {"team_name": "@team"},
+      "viz": "bar",
+      "sample_sql": "SELECT player_name, SUM(progressive_passes) prog, SUM(final_third_entries) f3 FROM statsbomb_marts.mart_player_match_profile WHERE team_name=@team GROUP BY 1 ORDER BY prog DESC"
+    }
+  ]
+}

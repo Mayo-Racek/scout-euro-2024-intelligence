@@ -1,0 +1,41 @@
+-- dataform/definitions/core/fact_event.sqlx
+-- THE FOUNDATION. Flattens raw nested JSON into one clean typed row per event.
+-- statsbombpy already gives mostly-flat columns; here we type + normalise them.
+-- location arrives as a JSON array "[x, y]" -> we split into location_x / location_y.
+
+config {
+  type: "table",
+  schema: "statsbomb_core",
+  description: "One clean row per on-ball event. Base primitive for everything.",
+  assertions: { nonNull: ["event_id", "match_id"] }
+}
+
+SELECT
+  id                                                      AS event_id,
+  CAST(match_id AS INT64)                                 AS match_id,
+  team                                                    AS team_name,
+  CAST(minute AS INT64)                                   AS minute,
+  CAST(second AS INT64)                                   AS second,
+  type                                                    AS type_name,
+  player                                                  AS player_name,
+  position                                                AS position_name,
+  play_pattern                                            AS play_pattern_name,
+  possession                                              AS possession_id,
+  possession_team                                         AS possession_team_name,
+  under_pressure                                          AS under_pressure,
+  -- location is a JSON string like "[60.0, 40.0]"
+  SAFE_CAST(JSON_EXTRACT_SCALAR(location, "$[0]") AS FLOAT64) AS location_x,
+  SAFE_CAST(JSON_EXTRACT_SCALAR(location, "$[1]") AS FLOAT64) AS location_y,
+  -- pass detail
+  pass_recipient                                          AS pass_recipient_name,
+  SAFE_CAST(pass_length AS FLOAT64)                       AS pass_length,
+  pass_outcome                                            AS pass_outcome_name,
+  SAFE_CAST(JSON_EXTRACT_SCALAR(pass_end_location, "$[0]") AS FLOAT64) AS pass_end_x,
+  SAFE_CAST(JSON_EXTRACT_SCALAR(pass_end_location, "$[1]") AS FLOAT64) AS pass_end_y,
+  -- shot detail
+  SAFE_CAST(shot_statsbomb_xg AS FLOAT64)                 AS shot_xg,
+  shot_outcome                                            AS shot_outcome_name,
+  -- carry detail
+  SAFE_CAST(JSON_EXTRACT_SCALAR(carry_end_location, "$[0]") AS FLOAT64) AS carry_end_x,
+  SAFE_CAST(JSON_EXTRACT_SCALAR(carry_end_location, "$[1]") AS FLOAT64) AS carry_end_y
+FROM ${ref("events_raw")}

@@ -1,0 +1,16 @@
+-- dataform/definitions/core/fact_shot.sqlx
+-- Shot primitive. xG comes straight from StatsBomb (do NOT re-model it).
+config { type: "table", schema: "statsbomb_core",
+         description: "One row per shot. xG is StatsBomb's shipped value." }
+
+SELECT
+  event_id, match_id, team_name, player_name AS shooter_name,
+  minute, possession_id,
+  location_x AS start_x, location_y AS start_y,
+  shot_xg AS xg,
+  (shot_outcome_name = "Goal") AS is_goal,
+  -- penalties flagged so non-penalty xG is possible
+  (play_pattern_name = "Penalty" OR play_pattern_name LIKE "%Penalty%") AS is_penalty,
+  shot_outcome_name
+FROM ${ref("fact_event")}
+WHERE type_name = "Shot"
