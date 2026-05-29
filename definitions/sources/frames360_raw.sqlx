@@ -1,0 +1,1 @@
+config { type: "declaration", schema: "statsbomb_raw", name: "frames360_raw" }

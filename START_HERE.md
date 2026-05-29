@@ -38,38 +38,15 @@ Then upload notebooks/02_validate.ipynb -> Run all.
   If a column-not-found error appears, paste it to me — 2-line fix in fact_event.
 
 ================================================================================
- STEP 3 — PUSH TO GITHUB, THEN CONNECT DATAFORM
+ STEP 3 — DATAFORM  (console -> BigQuery -> Dataform)
 ================================================================================
-3a) Push this project to GitHub (run in Cloud Shell, in the repo folder):
-
-    git init
-    git add .
-    git commit -m "Scout: governed Euro 2024 football intelligence agent"
-    git branch -M main
-    git remote add origin https://github.com/Mayo-Racek/scout-euro-2024-intelligence.git
-    git push -u origin main
-
-    (Create the empty repo on github.com FIRST — no README — then push.
-     If git asks for a password, use a GitHub Personal Access Token, not your
-     account password: github.com -> Settings -> Developer settings ->
-     Personal access tokens -> Fine-grained token with repo contents read/write.)
-
-3b) Connect Dataform to the GitHub repo:
-    Console -> BigQuery -> Dataform -> open "scout" repo -> Settings tab
-    -> Connect with third-party Git repository
-    -> Remote URL: https://github.com/Mayo-Racek/scout-euro-2024-intelligence.git
-    -> Default branch: main
-    -> Authentication: paste the same GitHub token (store as a Secret if asked).
-
-3c) Pull the files into your workspace:
-    Open the "dev" development workspace -> click PULL (from default branch).
-    All files appear. workflow_settings.yaml is already set to
-    defaultProject: statsbomb-football-iq, defaultLocation: europe-west1.
-
-3d) Build it:
-    Click Start execution -> Execute all actions -> Start.
-    Watch the DAG. Green = built. A red assertion = a real data bug to fix.
-    Result: statsbomb_core.* and statsbomb_marts.* tables now exist.
+  a) Create repository "scout" (region europe-west1).
+  b) Create development workspace "dev".
+  c) Recreate the dataform/ folder structure and paste each file in.
+     workflow_settings.yaml is ALREADY set to defaultProject: statsbomb-football-iq.
+  d) Start execution -> Execute all actions -> Start.
+  e) Watch the DAG go green. Red on an assertion = real data bug, fix it.
+  Result: statsbomb_core.* and statsbomb_marts.* tables now exist.
 
 ================================================================================
  STEP 4 — xT + VISUALS  (Colab)
