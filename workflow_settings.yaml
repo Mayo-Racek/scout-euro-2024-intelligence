@@ -2,7 +2,3 @@ defaultProject: statsbomb-football-iq
 defaultLocation: europe-west1
 defaultDataset: statsbomb_core
 defaultAssertionDataset: dataform_assertions
-<<<<<<< HEAD
-
-=======
->>>>>>> refs/heads/main
