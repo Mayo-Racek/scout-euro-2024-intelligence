@@ -1,0 +1,58 @@
+config {
+  type: "operations",
+  schema: "statsbomb_marts",
+  description: "Logistic-regression pass-danger model; scores every completed pass.",
+  hasOutput: true
+}
+
+-- Step 1: labelled feature table. Label = did this pass's possession end in a shot?
+CREATE OR REPLACE TABLE `statsbomb-football-iq.statsbomb_marts.mart_pass_danger_features` AS
+WITH possession_shots AS (
+  SELECT DISTINCT match_id, possession_id
+  FROM ${ref("fact_shot")}
+  WHERE NOT is_penalty
+)
+SELECT
+  p.event_id, p.match_id, p.team_name, p.passer_name, p.receiver_name,
+  p.start_x, p.start_y, p.end_x, p.end_y, p.pass_length,
+  p.pass_direction, p.is_progressive,
+  CAST(p.under_pressure AS INT64)   AS under_pressure,
+  CAST(p.into_final_third AS INT64) AS into_final_third,
+  CAST(p.into_box AS INT64)         AS into_box,
+  CASE p.pass_direction WHEN "forward" THEN 1 ELSE 0 END AS is_forward,
+  CASE WHEN s.possession_id IS NOT NULL THEN 1 ELSE 0 END AS led_to_shot
+FROM ${ref("fact_pass")} p
+LEFT JOIN possession_shots s
+  ON p.match_id = s.match_id AND p.possession_id = s.possession_id
+WHERE p.completed
+  AND p.start_x IS NOT NULL
+  AND p.end_x IS NOT NULL;
+
+---
+
+-- Step 2: train logistic regression on numeric features only
+CREATE OR REPLACE MODEL `statsbomb-football-iq.statsbomb_marts.mart_pass_danger_model`
+OPTIONS(
+  model_type = 'LOGISTIC_REG',
+  input_label_cols = ['led_to_shot'],
+  auto_class_weights = TRUE,
+  data_split_method = 'AUTO_SPLIT'
+) AS
+SELECT
+  start_x, start_y, end_x, end_y, pass_length,
+  under_pressure, into_final_third, into_box, is_forward,
+  led_to_shot
+FROM `statsbomb-football-iq.statsbomb_marts.mart_pass_danger_features`;
+
+---
+
+-- Step 3: score every pass, keep identifying columns + danger_score
+CREATE OR REPLACE TABLE `statsbomb-football-iq.statsbomb_marts.mart_pass_danger` AS
+SELECT
+  event_id, match_id, team_name, passer_name, receiver_name,
+  start_x, start_y, end_x, end_y,
+  pass_direction, is_progressive,
+  under_pressure, into_final_third, into_box,
+  (SELECT prob FROM UNNEST(predicted_led_to_shot_probs) WHERE label = 1) AS danger_score
+FROM ML.PREDICT(MODEL `statsbomb-football-iq.statsbomb_marts.mart_pass_danger_model`,
+  (SELECT * FROM `statsbomb-football-iq.statsbomb_marts.mart_pass_danger_features`));

@@ -1,1 +1,5 @@
+<<<<<<< HEAD
 config { type: "declaration", schema: "statsbomb_raw", name: "matches_raw" }
+=======
+config { type: "declaration", schema: "statsbomb_raw", name: "matches_raw" }
+>>>>>>> refs/heads/main
