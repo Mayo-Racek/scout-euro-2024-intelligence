@@ -1,0 +1,49 @@
+config {
+  type: "operations",
+  schema: "statsbomb_marts",
+  description: "KMEANS clustering of teams by style components.",
+  hasOutput: true
+}
+
+CREATE OR REPLACE TABLE `statsbomb-football-iq.statsbomb_marts.mart_team_style_cluster_features` AS
+SELECT
+  team_name,
+  AVG(directness)                      AS avg_directness,
+  AVG(field_tilt)                      AS avg_field_tilt,
+  AVG(progressive_share)               AS avg_progressive_share,
+  AVG(pass_completion_under_pressure)  AS avg_pass_completion_under_pressure,
+  AVG(forward_share)                   AS avg_forward_share
+FROM ${ref("mart_team_style_labels")}
+GROUP BY team_name;
+
+---
+
+CREATE OR REPLACE MODEL `statsbomb-football-iq.statsbomb_marts.mart_team_style_cluster_model`
+OPTIONS(
+  model_type = 'KMEANS',
+  num_clusters = 4,
+  standardize_features = TRUE
+) AS
+SELECT
+  avg_directness,
+  avg_field_tilt,
+  avg_progressive_share,
+  avg_pass_completion_under_pressure,
+  avg_forward_share
+FROM `statsbomb-football-iq.statsbomb_marts.mart_team_style_cluster_features`;
+
+---
+
+CREATE OR REPLACE TABLE `statsbomb-football-iq.statsbomb_marts.mart_team_style_cluster` AS
+SELECT
+  f.team_name,
+  p.CENTROID_ID AS style_cluster,
+  f.avg_directness,
+  f.avg_field_tilt,
+  f.avg_progressive_share,
+  f.avg_pass_completion_under_pressure,
+  f.avg_forward_share
+FROM ML.PREDICT(MODEL `statsbomb-football-iq.statsbomb_marts.mart_team_style_cluster_model`,
+                (SELECT * FROM `statsbomb-football-iq.statsbomb_marts.mart_team_style_cluster_features`)) p
+JOIN `statsbomb-football-iq.statsbomb_marts.mart_team_style_cluster_features` f USING (team_name)
+ORDER BY style_cluster, team_name;
